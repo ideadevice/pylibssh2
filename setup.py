@@ -51,23 +51,29 @@ Topic :: Software Development :: Libraries""".split('\n')
 
 libssh2_src = glob.glob('src/*.c')
 libssh2_dep = glob.glob('src/*.h')
-libssh2_incdir = None
-libssh2_libdir = None
+libssh2_incdir = []
+libssh2_libdir = []
 
 if 'bsd' in sys.platform[:-1] or 'bsd' in os.uname()[0].lower():
     libssh2_incdir = ['/usr/local/include/']
     libssh2_libdir = ['/usr/local/lib/']
 if 'darwin' in sys.platform:
     libssh2_incdir = ['/opt/local/include/']
-    libssh2_libdir = ['/opt/local/lib/']  
+    libssh2_libdir = ['/opt/local/lib/']
+
+if os.environ.get("PYLIBSSH2_INCLUDE_PATH"):
+   libssh2_incdir.append(os.environ.get("PYLIBSSH2_INCLUDE_PATH"))
+
+if os.environ.get("PYLIBSSH2_LIBRARY_PATH"):
+   libssh2_libdir.append(os.environ.get("PYLIBSSH2_LIBRARY_PATH"))
 
 libssh2_lib = ['ssh2']
 libssh2_compile_args = ['-ggdb']
 
 class Libssh2TestCommand(Command):
     user_options = []
-    
-    def initialize_options(self): 
+
+    def initialize_options(self):
         pass
     def finalize_options(self):
         pass
@@ -93,13 +99,14 @@ module = Extension('_libssh2',
                     depends = libssh2_dep,
                     include_dirs = libssh2_incdir,
                     library_dirs = libssh2_libdir,
+                    runtime_library_dirs = libssh2_libdir,
                     libraries = libssh2_lib,
                     extra_compile_args = libssh2_compile_args)
 
 setup(name='pylibssh2',
       version=version,
       packages    = ['libssh2'],
-      package_dir = { 
+      package_dir = {
         'libssh2' : 'libssh2'
       },
       description = long_description,
