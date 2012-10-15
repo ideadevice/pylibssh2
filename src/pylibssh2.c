@@ -108,14 +108,28 @@ static PyObject *
 PYLIBSSH2_Channel(PyObject *self, PyObject *args)
 {
     PYLIBSSH2_SESSION *session;
+    LIBSSH2_CHANNEL *channel;
     int dealloc = 1;
 
     if (!PyArg_ParseTuple(args, "O|i:Channel", &session, &dealloc)) {
         return NULL;
     }
 
-    return (PyObject *)PYLIBSSH2_Channel_New(libssh2_channel_open_session(
-                        session->session), dealloc);
+    channel = libssh2_channel_open_session(session->session);
+
+    if (channel== NULL){
+      if (libssh2_session_last_error(session->session,NULL,NULL,0) ==
+	  LIBSSH2_ERROR_EAGAIN){
+	return Py_BuildValue("");
+	}
+      else{
+	PyErr_SetString(PYLIBSSH2_Error, "Failed to open channel");
+	return NULL;
+      }
+    }
+    else {
+      return (PyObject *)PYLIBSSH2_Channel_New(channel, dealloc);
+    }
 }
 /* }}} */
 
@@ -132,14 +146,28 @@ static PyObject *
 PYLIBSSH2_Sftp(PyObject *self, PyObject *args)
 {
     PYLIBSSH2_SESSION *session;
+    LIBSSH2_SFTP *sftp;
     int dealloc = 1;
 
     if (!PyArg_ParseTuple(args, "O|i:Sftp", &session, &dealloc)) {
         return NULL;
     }
 
-    return (PyObject *)PYLIBSSH2_Sftp_New(libssh2_sftp_init(
-                        session->session), dealloc);
+    sftp = libssh2_sftp_init(session->session);
+
+    if (sftp == NULL){
+      if (libssh2_session_last_error(session->session,NULL,NULL,0) ==
+	  LIBSSH2_ERROR_EAGAIN){
+	return Py_BuildValue("");
+	}
+      else{
+	PyErr_SetString(PYLIBSSH2_Error, "Failed to init sftp");
+	return NULL;
+      }
+    }
+    else {
+      return (PyObject *)PYLIBSSH2_Sftp_New(session->session, sftp, dealloc);
+    }
 }
 /* }}} */
 

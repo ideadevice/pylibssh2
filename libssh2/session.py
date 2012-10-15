@@ -215,7 +215,7 @@ class Session(object):
         @return: new Sftp channel opened
         @rtype: L{Sftp}
         """
-        raise NotImplementedError()
+        return self._session.sftp_init()
 
     def setblocking(self, mode=1):
         """
@@ -316,6 +316,7 @@ class Session(object):
         """
         return self._session.userauth_publickey_fromfile(username, publickey,
                                                          privatekey, passphrase)
+
 
     def userauth_keyboardinteractive(self, username, password):
         """

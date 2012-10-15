@@ -71,7 +71,7 @@ PYLIBSSH2_Sftp_close(PYLIBSSH2_SFTP *self, PyObject *args)
     rc = libssh2_sftp_close_handle(handle->sftphandle);
     Py_END_ALLOW_THREADS
 
-    if (rc) {
+    if (rc && rc != LIBSSH2_ERROR_EAGAIN) {
         /* CLEAN: PYLIBSSH2_SFTPHANDLE_CANT_CLOSE_MSG */
         PyErr_SetString(PYLIBSSH2_Error, "Unable to close sftp handle.");
         return NULL;
@@ -105,12 +105,19 @@ PYLIBSSH2_Sftp_opendir(PYLIBSSH2_SFTP *self, PyObject *args)
     Py_END_ALLOW_THREADS
 
     if (handle == NULL) {
+      if (libssh2_session_last_error(self->session, NULL, NULL, 0) ==
+	  LIBSSH2_ERROR_EAGAIN){
+	return Py_BuildValue("");
+      }
+      else{
         /* CLEAN: PYLIBSSH2_SFTPHANDLE_CANT_OPENDIR_MSG */
         PyErr_SetString(PYLIBSSH2_Error, "Unable to open sftp directory.");
         return NULL;
+      }
     }
-
-    return (PyObject *)PYLIBSSH2_Sftphandle_New(handle, 1);
+    else {
+      return (PyObject *)PYLIBSSH2_Sftphandle_New(handle, 1);
+    }
 }
 /* }}} */
 
@@ -147,6 +154,10 @@ PYLIBSSH2_Sftp_readdir(PYLIBSSH2_SFTP *self, PyObject *args)
     buffer_maxlen = libssh2_sftp_readdir(handle->sftphandle, PyString_AsString(buffer),
                                          longentry_maxlen, &attrs);
     Py_END_ALLOW_THREADS
+
+    if (buffer_maxlen == LIBSSH2_ERROR_EAGAIN) {
+        return Py_BuildValue("i", buffer_maxlen);
+    }
 
     if (buffer_maxlen == 0) {
         Py_INCREF(Py_None);
@@ -208,6 +219,9 @@ PYLIBSSH2_Sftp_listdir(PYLIBSSH2_SFTP *self, PyObject *args)
             PyString_AsString(buffer), longentry_maxlen, &attrs);
         Py_END_ALLOW_THREADS
 
+	if (buffer_maxlen == LIBSSH2_ERROR_EAGAIN) {
+	    return Py_BuildValue("i", buffer_maxlen);
+	}
         if (buffer_maxlen == 0) { 
             break; 
         } else if (buffer_maxlen == -1) {
@@ -244,6 +258,7 @@ static PyObject *
 PYLIBSSH2_Sftp_open(PYLIBSSH2_SFTP *self, PyObject *args)
 {
     LIBSSH2_SFTP_HANDLE *handle;
+    LIBSSH2_CHANNEL *channel;
     char *path;
     char *flags = "r";
     long mode = 0755;
@@ -257,13 +272,18 @@ PYLIBSSH2_Sftp_open(PYLIBSSH2_SFTP *self, PyObject *args)
     Py_END_ALLOW_THREADS
 
     if (handle == NULL) {
-        /* CLEAN: PYLIBSSH2_SFTP_CANT_OPEN_MSG */
-        PyErr_SetString(PYLIBSSH2_Error, "Unable to sftp open.");
-        return NULL;
+      if (libssh2_session_last_error(self->session, NULL, NULL, 0) ==
+	  LIBSSH2_ERROR_EAGAIN){
+	return Py_BuildValue("");
+      }
+      else{
+	PyErr_SetString(PYLIBSSH2_Error, "Failed to open handle");
+	return NULL;
+      }
     }
-
-    return (PyObject *)PYLIBSSH2_Sftphandle_New(handle, 1);
-    
+    else {
+      return (PyObject *)PYLIBSSH2_Sftphandle_New(handle, 1);
+    }
 }
 /* }}} */
 
@@ -282,6 +302,10 @@ PYLIBSSH2_Sftp_shutdown(PYLIBSSH2_SFTP *self, PyObject *args)
     int rc;
 
     rc=libssh2_sftp_shutdown(self->sftp);
+
+    if (rc == LIBSSH2_ERROR_EAGAIN) {
+        return Py_BuildValue("i", rc);
+    }
 
     if (rc == -1) {
         /* CLEAN: PYLIBSSH2_SFTP_CANT_SHUTDOWN_MSG */
@@ -325,6 +349,11 @@ PYLIBSSH2_Sftp_read(PYLIBSSH2_SFTP *self, PyObject *args)
                            buffer_maxlen);
     Py_END_ALLOW_THREADS
 
+
+    if (rc == LIBSSH2_ERROR_EAGAIN) {
+        return Py_BuildValue("i", rc);
+    }
+
     if (rc > 0) {
         if ( rc != buffer_maxlen && _PyString_Resize(&buffer, rc) < 0) {
             Py_INCREF(Py_None);
@@ -364,7 +393,7 @@ PYLIBSSH2_Sftp_write(PYLIBSSH2_SFTP *self, PyObject *args)
     rc = libssh2_sftp_write(handle->sftphandle, buffer, buffer_len);
     Py_END_ALLOW_THREADS
 
-    if (rc < 0) {
+    if (rc < 0 && rc != LIBSSH2_ERROR_EAGAIN) {
         /* CLEAN: PYLIBSSH2_Sftp_CANT_WRITE_MSG */
         PyErr_Format(PYLIBSSH2_Error, "Unable to write sftp.");
         return NULL;
@@ -566,6 +595,10 @@ PYLIBSSH2_Sftp_realpath(PYLIBSSH2_SFTP *self, PyObject *args)
             PyString_AsString(target), target_len, type);
     Py_END_ALLOW_THREADS
 
+    if (rc == LIBSSH2_ERROR_EAGAIN) {
+        return Py_BuildValue("i", rc);
+    }
+
     if (rc > 0) {
         if (rc != target_len && _PyString_Resize(&target, rc) < 0) {
             Py_INCREF(Py_None);
@@ -639,6 +672,10 @@ PYLIBSSH2_Sftp_get_stat(PYLIBSSH2_SFTP *self, PyObject *args)
     Py_BEGIN_ALLOW_THREADS
     rc = libssh2_sftp_stat_ex(self->sftp, path, path_len, type, &attr);
     Py_END_ALLOW_THREADS
+
+    if (rc == LIBSSH2_ERROR_EAGAIN) {
+        return Py_BuildValue("i", rc);
+    }
 
     if (rc == -1) {
         /* CLEAN: PYLIBSSH2_SFTP_CANT_GETSTAT_MSG */
@@ -752,7 +789,7 @@ static PyMethodDef PYLIBSSH2_Sftp_methods[] =
 /* {{{ PYLIBSSH2_Sftp_New
  */
 PYLIBSSH2_SFTP *
-PYLIBSSH2_Sftp_New(LIBSSH2_SFTP *sftp, int dealloc)
+PYLIBSSH2_Sftp_New(LIBSSH2_SESSION *session, LIBSSH2_SFTP *sftp, int dealloc)
 {
     PYLIBSSH2_SFTP *self;
 
@@ -763,6 +800,7 @@ PYLIBSSH2_Sftp_New(LIBSSH2_SFTP *sftp, int dealloc)
 
     self->sftp = sftp;
     self->dealloc = dealloc;
+    self->session = session;
 
     return self;
 }

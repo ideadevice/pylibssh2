@@ -62,7 +62,7 @@ extern PyObject *PYLIBSSH2_Error;
 
 #define PYLIBSSH2_Sftp_New_NUM           2
 #define PYLIBSSH2_Sftp_New_RETURN        PYLIBSSH2_SFTP *
-#define PYLIBSSH2_Sftp_New_PROTO         (LIBSSH2_SFTP *, int)
+#define PYLIBSSH2_Sftp_New_PROTO         (LIBSSH2_SESSION *, LIBSSH2_SFTP *, int)
 
 #define PYLIBSSH2_Sftphandle_New_NUM     3
 #define PYLIBSSH2_Sftphandle_New_RETURN  PYLIBSSH2_SFTPHANDLE *
